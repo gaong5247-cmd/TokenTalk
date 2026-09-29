@@ -27,6 +27,6 @@ export async function translate(text: string, source: string, target: string) {
     const output = result.choices?.[0]?.message?.content;
     if (!output)
         throw new Error('Empty translation');
-    await db().prepare('INSERT OR REPLACE INTO translations(key,body,created) VALUES(?,?,?)').bind(hash, output, Date.now()).run();
+    await db().prepare('INSERT INTO translations(key,body,created) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body,created=excluded.created').bind(hash, output, Date.now()).run();
     return { text: output, translated: true };
 }

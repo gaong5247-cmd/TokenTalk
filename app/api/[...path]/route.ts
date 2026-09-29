@@ -1,5 +1,6 @@
-import { getChatGPTUser } from '@/app/chatgpt-auth';
-import { db, runtime } from '@/lib/db';
+import {isSameOrigin} from '@/lib/security';
+import { getAuthenticatedUser, authConfigured } from '@/lib/auth/server';
+import { db, runtime, databaseConfigured } from '@/lib/db';
 import { seed } from '@/lib/seed';
 import { categories, languages, tags } from '@/lib/catalog';
 import { translate } from '@/lib/translation';
@@ -13,18 +14,19 @@ async function rate(uid: string, action: string, max = 30) { const key = `${uid}
     count: number;
 }>(); if ((r?.count || 0) > max)
     throw new Error('RATE_LIMIT'); }
-const projection = `p.*,u.name,(SELECT COUNT(*) FROM comments c WHERE c.post_id=p.id) comments,(SELECT COALESCE(SUM(value=1),0) FROM votes v WHERE v.post_id=p.id) up,(SELECT COALESCE(SUM(value=-1),0) FROM votes v WHERE v.post_id=p.id) down,(SELECT COALESCE(value,0) FROM votes v WHERE v.post_id=p.id AND v.user_id=?) my_vote,(SELECT COUNT(*) FROM comments c WHERE c.post_id=p.id AND c.created>?) recent_comments,(SELECT COUNT(*) FROM votes v WHERE v.post_id=p.id AND v.value=1 AND v.created>?) recent_votes`;
+const projection = `p.*,u.name,(SELECT COUNT(*) FROM comments c WHERE c.post_id=p.id) comments,(SELECT COALESCE(SUM(CASE WHEN value=1 THEN 1 ELSE 0 END),0) FROM votes v WHERE v.post_id=p.id) up,(SELECT COALESCE(SUM(CASE WHEN value=-1 THEN 1 ELSE 0 END),0) FROM votes v WHERE v.post_id=p.id) down,(SELECT COALESCE(value,0) FROM votes v WHERE v.post_id=p.id AND v.user_id=?) my_vote,(SELECT COUNT(*) FROM comments c WHERE c.post_id=p.id AND c.created>?) recent_comments,(SELECT COUNT(*) FROM votes v WHERE v.post_id=p.id AND v.value=1 AND v.created>?) recent_votes`;
 async function handle(req: Request) {
     try {
-        const path = new URL(req.url).pathname.replace('/api/', '').split('/'), url = new URL(req.url), user = await getChatGPTUser(), d = db(), now = Date.now();
+        const path = new URL(req.url).pathname.replace('/api/', '').split('/'), url = new URL(req.url), user = await getAuthenticatedUser(), d = db(), now = Date.now();
         if (req.method === 'GET') {
             if (path[0] === 'bootstrap') {
+ if(!databaseConfigured())return json({user:user?{id:user.userId}:null,profile:null,online:[],translationReady:false,authReady:authConfigured(),databaseReady:false});
                 await seed();
                 const profile = user ? await d.prepare('SELECT * FROM profiles WHERE id=?').bind(user.userId).first() : null;
                 if (profile)
                     await d.prepare('UPDATE profiles SET seen=? WHERE id=?').bind(now, user!.userId).run();
                 const online = await d.prepare('SELECT name FROM profiles WHERE seen>? ORDER BY seen DESC LIMIT 12').bind(now - 120000).all();
-                return json({ user: user ? { id: user.userId } : null, profile, online: online.results, translationReady: !!(runtime().TRANSLATION_API_KEY && runtime().TRANSLATION_BASE_URL && runtime().TRANSLATION_MODEL) });
+                return json({ authReady:authConfigured(),databaseReady:true,user: user ? { id: user.userId } : null, profile, online: online.results, translationReady: !!(runtime().TRANSLATION_API_KEY && runtime().TRANSLATION_BASE_URL && runtime().TRANSLATION_MODEL) });
             }
             if (path[0] === 'posts') {
                 await seed();
@@ -60,7 +62,7 @@ async function handle(req: Request) {
         if (req.method !== 'POST')
             return json({ error: 'Method not allowed' }, 405);
         const origin = req.headers.get('origin');
-        if (origin && origin !== url.origin)
+        if (!isSameOrigin(req))
             return json({ error: 'Origin rejected' }, 403);
         if (!user)
             return json({ error: '로그인 후 이용해주세요. / Sign in to continue.' }, 401);
@@ -91,7 +93,7 @@ async function handle(req: Request) {
             }
             if (path[1] === 'view') {
                 const id = str(b.id, 100), day = new Date().toISOString().slice(0, 10);
-                await d.batch([d.prepare('INSERT OR IGNORE INTO views(post_id,viewer,day) VALUES(?,?,?)').bind(id, user.userId, day), d.prepare('UPDATE posts SET views=(SELECT COUNT(*) FROM views WHERE post_id=?) WHERE id=?').bind(id, id)]);
+                await d.batch([d.prepare('INSERT INTO views(post_id,viewer,day) VALUES(?,?,?) ON CONFLICT DO NOTHING').bind(id, user.userId, day), d.prepare('UPDATE posts SET views=(SELECT COUNT(*) FROM views WHERE post_id=?) WHERE id=?').bind(id, id)]);
                 return json({ ok: true });
             }
             await rate(user.userId, 'post', 5);
