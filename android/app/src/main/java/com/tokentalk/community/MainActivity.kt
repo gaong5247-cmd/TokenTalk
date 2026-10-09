@@ -171,7 +171,7 @@ class MainActivity : Activity() {
         val title=EditText(this).apply {hint="제목";setTextColor(light);(body?:root).addView(this)}
         val message=EditText(this).apply {hint="내용";minLines=5;setTextColor(light);(body?:root).addView(this)}
         val category=Spinner(this)
-        val values=listOf("OpenAI/GPT","Anthropic/Claude","Google/Gemini","Open Source LLM","Local LLM","AI News","자유게시판")
+        val values=listOf("OpenAI / GPT","Anthropic / Claude","Google / Gemini","Open Source LLM","Local LLM","AI News","자유게시판")
         category.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,values)
         (body?:root).addView(category)
         action("게시하기") {
