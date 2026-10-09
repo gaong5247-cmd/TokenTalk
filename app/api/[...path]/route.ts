@@ -31,14 +31,14 @@ async function handle(req: Request) {
             if (path[0] === 'posts') {
                 await seed();
                 if (path[1]) {
-                    const post = await d.prepare(`SELECT ${projection} FROM posts p LEFT JOIN profiles u ON u.id=p.author WHERE p.id=?`).bind(user?.userId || '', now - 3600000, now - 3600000, path[1]).first();
+                    const post = await d.prepare(`SELECT ${projection} FROM posts p LEFT JOIN profiles u ON u.id=p.author WHERE p.id=? AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker=? AND b.blocked=p.author)`).bind(user?.userId || '', now - 3600000, now - 3600000, path[1], user?.userId || '').first();
                     if (!post)
                         return json({ error: 'Post not found' }, 404);
-                    const comments = await d.prepare('SELECT c.*,u.name FROM comments c LEFT JOIN profiles u ON u.id=c.author WHERE post_id=? ORDER BY created').bind(path[1]).all();
+                    const comments = await d.prepare('SELECT c.*,u.name FROM comments c LEFT JOIN profiles u ON u.id=c.author WHERE post_id=? AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker=? AND b.blocked=c.author) ORDER BY created').bind(path[1],user?.userId||'').all();
                     return json({ post, comments: comments.results });
                 }
                 const q = (url.searchParams.get('q') || '').slice(0, 200), category = url.searchParams.get('category') || '', model = url.searchParams.get('model') || '', kind = url.searchParams.get('kind') || '', sort = url.searchParams.get('sort') || 'hot';
-                const rows = await d.prepare(`SELECT ${projection} FROM posts p LEFT JOIN profiles u ON u.id=p.author WHERE (?='' OR p.title LIKE ? OR p.body LIKE ?) AND (?='' OR p.category=?) AND (?='' OR lower(p.tags) LIKE ?) AND (?='' OR p.kind=?) ORDER BY p.created DESC LIMIT 200`).bind(user?.userId || '', now - 3600000, now - 3600000, q, '%' + q + '%', '%' + q + '%', category, category, model, '%' + model.toLowerCase() + '%', kind, kind).all<Record<string, any>>();
+                const rows = await d.prepare(`SELECT ${projection} FROM posts p LEFT JOIN profiles u ON u.id=p.author WHERE (?='' OR p.title LIKE ? OR p.body LIKE ?) AND (?='' OR p.category=?) AND (?='' OR lower(p.tags) LIKE ?) AND (?='' OR p.kind=?) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker=? AND b.blocked=p.author) ORDER BY p.created DESC LIMIT 200`).bind(user?.userId || '', now - 3600000, now - 3600000, q, '%' + q + '%', '%' + q + '%', category, category, model, '%' + model.toLowerCase() + '%', kind, kind, user?.userId || '').all<Record<string, any>>();
                 const posts: any[] = rows.results.map(p => ({ ...p, heat: (p.recent_comments * 4 + p.recent_votes * 3 + Math.log2(p.views + 1) + 1) / Math.pow(1 + (now - p.activity) / 3600000, 1.2) }));
                 if (sort === 'hot')
                     posts.sort((a, b) => b.heat - a.heat);
@@ -48,7 +48,7 @@ async function handle(req: Request) {
             }
             if (path[0] === 'chat') {
                 const channel = url.searchParams.get('channel') || 'general';
-                const rows = await d.prepare('SELECT m.*,p.name FROM messages m LEFT JOIN profiles p ON p.id=m.author WHERE channel=? ORDER BY created DESC LIMIT 80').bind(channel).all();
+                const rows = await d.prepare('SELECT m.*,p.name FROM messages m LEFT JOIN profiles p ON p.id=m.author WHERE channel=? AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE b.blocker=? AND b.blocked=m.author) ORDER BY created DESC LIMIT 80').bind(channel,user?.userId||'').all();
                 return json({ messages: rows.results.reverse() });
             }
             if (path[0] === 'notifications') {
