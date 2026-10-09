@@ -1,36 +1,27 @@
-# TokenTalk Android starter
+# TokenTalk Android-only
 
-Android application shell for the existing TokenTalk Next.js / Supabase site. This intentionally reuses the deployed same-origin browser session: the current server API authenticates with cookies and checks Origin on writes.
+TokenTalk is an Android-native community client. It does **not** embed the Next.js website or use WebView. Existing website source is kept as historical code; the Android build depends on Supabase Auth + PostgREST and a hosted PostgreSQL database, not a public website.
 
-## Build
+## Android build (debug)
 
-Requires JDK 17, Android SDK platform 36, Android Gradle Plugin 8.13.2 and Gradle 8.13.
-
-From `android/`:
+Requires Android SDK Platform 36, JDK 17, Gradle 8.13.
 
 ```sh
-gradle :app:assembleDebug -PtokenTalkUrl=https://YOUR-REAL-TOKENTALK-DOMAIN
+cd android
+gradle :app:assembleDebug -PsupabaseUrl=https://YOUR_PROJECT.supabase.co -PsupabasePublishableKey=YOUR_PUBLIC_PUBLISHABLE_KEY
 ```
 
-The URL must point to **your own live HTTPS TokenTalk deployment** with a configured Supabase project. With no URL, the APK displays a configuration message instead of loading an unknown website. Never pass database credentials or secret keys to Android.
+Only a **publishable** Supabase key belongs in the app. Never include service-role, secret or database connection strings. For release builds use a private CI build configuration; debug artifacts are not Play Store releases.
 
-APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+## Server-side preparation
 
-To produce a Play bundle, configure your release signing key securely then run:
+1. Restore the Tokentalk Supabase project; it was found inactive when inspected.
+2. Review/apply SQL migrations, including `20261009190000_moderation.sql` and `20261009193000_mobile_rls.sql`. Inspect with the Supabase security advisor before deploying.
+3. Enable Supabase email confirmation and test signup, token refresh, profile creation, feed access, posting, comments and reports on a real device.
+4. Before public release: account deletion, moderation review interface, abuse limits, edit/delete user content, session persistence hardening and Play privacy disclosures.
 
-```sh
-gradle :app:bundleRelease -PtokenTalkUrl=https://YOUR-REAL-TOKENTALK-DOMAIN
-```
+## Status
 
-Output: `android/app/build/outputs/bundle/release/app-release.aab` (unsigned until signing is configured).
+Native starter: Android Views-based screens for authentication, feed, posts, comments, reporting and blocking. Kotlin/Android Views are native Android, but **Jetpack Compose migration has not been completed**. No website or Vercel dependency remains in the Android app.
 
-## Included
-
-- Android 8+ launcher, target Android API 36
-- Secure HTTPS-only same-origin WebView for existing posts, auth, comments and chats
-- External links open through external apps, local back navigation, session cookies, loading bar and network error messaging
-- Debugging only enabled for debug builds; file/content access disabled
-
-## Next release blockers
-
-This is a **starter**, not a Play-ready release. Verify a real production site, test auth confirmation redirects, polish offline/retry UX, add moderation, reporting, blocking and account deletion to the backend, publish privacy policy, add proper signing and run device tests. Prefer native Compose feed/post screens in a later phase rather than relying indefinitely on a web wrapper. Configure a unique Play package ID before first publication; Play IDs cannot be changed afterward.
+An APK with no supplied Supabase URL/key shows a configuration message. It is not a functional public release.
