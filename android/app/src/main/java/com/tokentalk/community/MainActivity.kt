@@ -17,13 +17,10 @@ class MainActivity : Activity() {
         "Open Source LLM", "Local LLM", "AI News", "자유게시판")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        api = NativeApi(this)
+        api = NativeApi()
         root = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(17,22,34)) }
         setContentView(root)
-        if (!api.configured) {
-            reset("TokenTalk")
-            label("Supabase 프로젝트 주소와 publishable key를 빌드 속성으로 설정해야 합니다.")
-        } else home()
+        home()
     }
     private fun reset(title:String) {
         root.removeAllViews()
@@ -64,13 +61,12 @@ class MainActivity : Activity() {
             button("로그아웃"){api.logout();home()}
         } else button("로그인 · 가입"){login()}
         button("새로고침"){home()}
-        run({api.blocks() to api.feed()}){(blocked,posts)->
-            if(posts.length()==0)label("아직 게시글이 없습니다")
-            for(i in 0 until posts.length()){
-                val item=posts.optJSONObject(i)?:continue
-                if(item.optString("author") in blocked)continue
-                val id=item.optString("id")
-                button("[${item.optString("category")}] ${item.optString("title")}"){details(id)}
+        run({(if(api.authenticated) api.blocks() else emptySet<String>()) to api.feed()}){(blocked,posts)->
+            if(posts.isEmpty())label("아직 게시글이 없습니다")
+            for(item in posts){
+                if(item["author"] in blocked)continue
+                val id=item["id"].toString()
+                button("[${item["category"]}] ${item["title"]}"){details(id)}
             }
         }
     }
@@ -106,19 +102,17 @@ class MainActivity : Activity() {
     private fun details(id:String) {
         reset("게시글")
         run({api.feed() to api.comments(id)}){(posts,comments)->
-            val post=(0 until posts.length()).mapNotNull{posts.optJSONObject(it)}
-                .firstOrNull{it.optString("id")==id}
+            val post=posts.firstOrNull{it["id"]==id}
             if(post==null){label("글을 찾을 수 없습니다");return@run}
-            label(post.optString("title"))
-            label(post.optString("body"))
-            val author=post.optString("author")
+            label(post["title"].toString())
+            label(post["body"].toString())
+            val author=post["author"].toString()
             button("게시글 신고"){report("post",id)}
             if(api.authenticated)button("작성자 차단"){confirmBlock(author)}
             label("댓글")
-            for(i in 0 until comments.length()){
-                val c=comments.optJSONObject(i)?:continue
-                label(c.optString("body"))
-                button("댓글 신고"){report("comment",c.optString("id"))}
+            for(c in comments){
+                label(c["body"].toString())
+                button("댓글 신고"){report("comment",c["id"].toString())}
             }
             if(api.authenticated){
                 val body=input("댓글 작성",2)
