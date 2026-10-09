@@ -32,6 +32,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
+      - name: Configure Firebase Android app
+        env:
+          FIREBASE_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$FIREBASE_JSON" ]; then
+            echo "::notice::Firebase app config secret missing. Set FIREBASE_GOOGLE_SERVICES_JSON_BASE64 to build the APK."
+            exit 1
+          fi
+          printf %s "$FIREBASE_JSON" | base64 --decode > app/google-services.json
       - name: Assemble debug APK
         run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
