@@ -1,11 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
-
-val supabaseUrl = providers.gradleProperty("supabaseUrl").orElse("").get().trimEnd('/')
-val supabaseKey = providers.gradleProperty("supabasePublishableKey").orElse("").get()
-require(supabaseUrl.isEmpty() || supabaseUrl.startsWith("https://")) { "supabaseUrl must be HTTPS" }
 
 android {
     namespace = "com.tokentalk.community"
@@ -17,8 +14,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabaseKey\"")
     }
     buildFeatures { buildConfig = true }
     buildTypes {
@@ -37,4 +32,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 }
