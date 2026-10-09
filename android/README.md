@@ -1,27 +1,21 @@
-# TokenTalk Android-only
+# TokenTalk Firebase Android
 
-TokenTalk is an Android-native community client. It does **not** embed the Next.js website or use WebView. Existing website source is kept as historical code; the Android build depends on Supabase Auth + PostgREST and a hosted PostgreSQL database, not a public website.
+Android native app, no website or Supabase dependency. Uses Firebase Authentication and Cloud Firestore on Spark.
 
-## Android build (debug)
+## Setup
+1. Create Firebase project on **Spark** and register Android application package `com.tokentalk.community`.
+2. Download the real `google-services.json` from Firebase Console to `android/app/google-services.json` (never fabricate this file).
+3. Enable Authentication > Sign-in method > Email/Password.
+4. Create a Cloud Firestore default database in production mode, then publish `firebase/firestore.rules` using Firestore Rules UI.
+5. Open `android/` with Android Studio or build with `gradle :app:assembleDebug` (JDK 17, Gradle 8.13, SDK 36).
+6. For GitHub Actions, add a secret `FIREBASE_GOOGLE_SERVICES_JSON_BASE64` containing base64-encoded JSON. CI uses the secret to build but does not publish it.
 
-Requires Android SDK Platform 36, JDK 17, Gradle 8.13.
+## Data structure
+- `profiles/{uid}`: display name and creation time
+- `profiles/{uid}/blocks/{blockedUid}`: user blocks
+- `posts/{postId}`: posts
+- `posts/{postId}/comments/{commentId}`: comments
+- `reports/{reportId}`: write-only report submissions
 
-```sh
-cd android
-gradle :app:assembleDebug -PsupabaseUrl=https://YOUR_PROJECT.supabase.co -PsupabasePublishableKey=YOUR_PUBLIC_PUBLISHABLE_KEY
-```
-
-Only a **publishable** Supabase key belongs in the app. Never include service-role, secret or database connection strings. For release builds use a private CI build configuration; debug artifacts are not Play Store releases.
-
-## Server-side preparation
-
-1. Restore the Tokentalk Supabase project; it was found inactive when inspected.
-2. Review/apply SQL migrations, including `20261009190000_moderation.sql` and `20261009193000_mobile_rls.sql`. Inspect with the Supabase security advisor before deploying.
-3. Enable Supabase email confirmation and test signup, token refresh, profile creation, feed access, posting, comments and reports on a real device.
-4. Before public release: account deletion, moderation review interface, abuse limits, edit/delete user content, session persistence hardening and Play privacy disclosures.
-
-## Status
-
-Native starter: Android Views-based screens for authentication, feed, posts, comments, reporting and blocking. Kotlin/Android Views are native Android, but **Jetpack Compose migration has not been completed**. No website or Vercel dependency remains in the Android app.
-
-An APK with no supplied Supabase URL/key shows a configuration message. It is not a functional public release.
+## Release blockers
+Current Firestore rules provide a baseline, not production-safe anti-abuse. Test rules against the emulator, add a trusted moderation workflow, anti-spam quotas, editable/deletable own content, account deletion, App Check, privacy policy, store assets, release signing and real-device tests before publishing. Blocking currently hides accounts within the app; it does not prevent all backend reads. Existing Supabase records remain unchanged.
