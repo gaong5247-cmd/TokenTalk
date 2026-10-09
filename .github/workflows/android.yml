@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Install Android SDK 36
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: |\n          SDKMANAGER="$(find /usr/local/lib/android/sdk/cmdline-tools -name sdkmanager -type f | head -1)"\n          yes | "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" || test "${PIPESTATUS[1]}" -eq 0
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
