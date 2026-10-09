@@ -23,8 +23,8 @@ class NativeApi(private val context: Context) {
             c.setRequestProperty("Accept", "application/json")
             c.setRequestProperty("Content-Type", "application/json")
             val token = if (authenticated) prefs.getString("access",null) else null
-            c.setRequestProperty("Authorization", "Bearer ${token ?: key}")
-            if (method != "GET") c.setRequestProperty("Prefer","return=representation")
+            if (token != null) c.setRequestProperty("Authorization", "Bearer $token")
+            if (method != "GET") c.setRequestProperty("Prefer", if(path.contains("on_conflict=")) "resolution=merge-duplicates,return=representation" else "return=minimal")
             if (body != null) {
                 c.doOutput=true
                 c.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
