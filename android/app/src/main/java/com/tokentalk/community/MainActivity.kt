@@ -61,7 +61,8 @@ class MainActivity : Activity() {
             button("로그아웃"){api.logout();home()}
         } else button("로그인 · 가입"){login()}
         button("새로고침"){home()}
-        run({(if(api.authenticated) api.blocks() else emptySet<String>()) to api.feed()}){(blocked,posts)->
+        if(!api.authenticated){label("로그인 후 게시글을 볼 수 있습니다");return}
+        run({api.blocks() to api.feed()}){(blocked,posts)->
             if(posts.isEmpty())label("아직 게시글이 없습니다")
             for(item in posts){
                 if(item["author"] in blocked)continue
@@ -85,7 +86,7 @@ class MainActivity : Activity() {
         }
         button("로그인"){submit(false)}
         button("회원가입"){submit(true)}
-        label("회원가입 확인 메일은 외부 이메일 앱에서 인증합니다. 이메일 인증 후 돌아와 로그인하세요.")
+        label("이메일/비밀번호 Firebase 로그인입니다. 본인에게 확인 메일을 보내는 기능은 추후 추가됩니다.")
     }
     private fun compose() {
         if(!api.authenticated){login();return}
