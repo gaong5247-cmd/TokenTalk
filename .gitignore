@@ -47,3 +47,6 @@ next-env.d.ts
 
 !.env.example
 *.tsbuildinfo
+
+# Firebase Android app configuration (provided through Firebase Console / CI secret)
+android/app/google-services.json
