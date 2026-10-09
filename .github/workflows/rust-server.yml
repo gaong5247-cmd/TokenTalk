@@ -1,0 +1,25 @@
+name: Rust server check
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - '.github/workflows/rust-server.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/rust-server.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
+      - run: cargo test
