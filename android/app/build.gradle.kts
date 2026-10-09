@@ -3,8 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val tokenTalkUrl = providers.gradleProperty("tokenTalkUrl").orElse("").get().trimEnd('/')
-require(tokenTalkUrl.isEmpty() || tokenTalkUrl.startsWith("https://")) { "tokenTalkUrl must be HTTPS" }
+val supabaseUrl = providers.gradleProperty("supabaseUrl").orElse("").get().trimEnd('/')
+val supabaseKey = providers.gradleProperty("supabasePublishableKey").orElse("").get()
+require(supabaseUrl.isEmpty() || supabaseUrl.startsWith("https://")) { "supabaseUrl must be HTTPS" }
 
 android {
     namespace = "com.tokentalk.community"
@@ -16,7 +17,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-        buildConfigField("String", "SITE_URL", "\"$tokenTalkUrl\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabaseKey\"")
     }
     buildFeatures { buildConfig = true }
     buildTypes {
